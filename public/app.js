@@ -12,7 +12,7 @@ async function api(method, url, body) {
   if (!r.ok) throw Object.assign(new Error(j.error || 'Something went wrong'), j, { status: r.status });
   return j;
 }
-function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('on'), 3200); }
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.remove('on'); void t.offsetWidth; t.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('on'), 3200); }
 const fail = e => { if (!e.handled) toast(e.message); };
 
 /* ── formatting ── */
@@ -67,7 +67,7 @@ function passDlg(title, list) {
 const LOGO = (c = 'var(--primary)') => `<svg class="logo" viewBox="0 0 28 28" aria-hidden="true" style="color:${c}"><rect width="28" height="28" rx="8" fill="currentColor" opacity=".14"/><path d="M14 21.5s-6.6-4.1-6.6-8.5a3.4 3.4 0 0 1 6.6-1.1 3.4 3.4 0 0 1 6.6 1.1c0 4.4-6.6 8.5-6.6 8.5z" fill="currentColor"/></svg>`;
 function render() {
   const app = $('#app');
-  if (!token || !S) { app.innerHTML = loginView(); return; }
+  if (!token || !S) { app.innerHTML = loginView(); enhanceMotion(); return; }
   const views = { today: todayView, meds: medsView, visits: visitsView, circle: circleView, health: healthView };
   const tabsDef = [['today', 'Today'], ['meds', 'Medicines'], ['visits', 'Appointments'], ['circle', 'Care circle'], ['health', 'Health']];
   const simple = ls.get('ec_simple') === '1';
@@ -84,10 +84,19 @@ function render() {
     <main class="wrap" id="main" tabindex="-1">${views[tab]()}</main>
     <nav class="tabs only-mob" aria-label="Main mobile">${tabsDef.map(navBtn).join('')}</nav>
   </div>`;
+  enhanceMotion();
 }
 
 const canDecide = () => S.me.role === 'elder' || (S.me.role === 'caretaker' && S.circle.settings.caretakerApproves);
 const manage = () => S.me.role !== 'family';
+
+
+/* ── motion hooks (implementation lives in motion.js; the app works fully without it) ── */
+function enhanceMotion() {
+  const M = window.CCMotion; if (!M) return;
+  M.intro();
+  M.scan(!token || !S ? 'auth:' + loginMode : 'app:' + tab);
+}
 
 /* ── login ── */
 function loginView() {
@@ -97,33 +106,36 @@ function loginView() {
   const form = signIn
     ? `<form class="card" data-form="login"><label>Circle code<input name="code" autocomplete="off" autocapitalize="characters" placeholder="e.g. K7M2QX" required value="${esc(ls.get('ec_code') || '')}"></label>
     <label>Your passcode<input name="passcode" autocomplete="off" autocapitalize="none" placeholder="e.g. maple-4821" required></label>
-    <button class="primary big" type="submit">Sign in</button><p class="muted small">Ask the person who set up the circle for your code and passcode. Each person has their own.</p></form>`
+    <button class="primary big magnetic" type="submit">Sign in</button><p class="muted small">Ask the person who set up the circle for your code and passcode. Each person has their own.</p></form>`
     : `<form class="card" data-form="create"><div class="seg" role="group" aria-label="Who is this for"><button type="button" data-act="setup" data-v="self" aria-pressed="${setup === 'self'}">It's for me</button><button type="button" data-act="setup" data-v="other" aria-pressed="${setup === 'other'}">For someone I care for</button></div>
     <label>Name of the person being cared for<input name="elderName" required maxlength="60" placeholder="e.g. Savitri Devi"></label>
     ${setup === 'other' ? `<label>Your name<input name="yourName" required maxlength="60"></label>` : ''}
     <label>Your email (for reminders)<input name="yourEmail" type="email" autocomplete="email" placeholder="you@example.com"></label>
     ${setup === 'other' ? `<label>Their email (optional)<input name="elderEmail" type="email" placeholder="So they get dose reminders too"></label>` : ''}
     <label>Time zone<input name="timezone" value="${esc(tz)}" required></label>
-    <button class="primary big" type="submit">Create circle</button></form>`;
+    <button class="primary big magnetic" type="submit">Create circle</button></form>`;
   return `<div class="auth">
     <aside class="auth-side" aria-label="About CareCircle">
-      <div class="brand" style="color:#fff;font-size:1.1rem">${LOGO('#8fd3ad')}CareCircle</div>
-      <div>
-        <h2>Medicines, appointments and peace of mind, shared by the whole family.</h2>
-        <p>One calm place for the people who look after someone. The elder stays in charge of their own care.</p>
+      <div class="auth-glow" aria-hidden="true"></div>
+      <header class="auth-nav"><div class="brand" style="color:#fff;font-size:1.1rem">${LOGO('#8fd3ad')}CareCircle</div>
+        <nav class="auth-links" aria-label="Sign-in options"><button type="button" class="nl" data-act="lmode" data-m="in" ${signIn ? 'aria-current="true"' : ''}>Sign in</button><button type="button" class="nl" data-act="lmode" data-m="new" ${!signIn ? 'aria-current="true"' : ''}>Start a circle</button></nav></header>
+      <div class="auth-hero">
+        <h2 data-blur-text class="hero-title">Better care begins together.</h2>
+        <p class="hero-sub">Medicines, appointments and peace of mind, shared by the whole family. The elder stays in charge of their own care.</p>
         <ul>
-          <li>The elder decides who can change the care plan, and what family can see.</li>
-          <li>Reminders reach the people who need them, once, at the right time.</li>
-          <li>A missed dose is noticed and shared with the circle, not left to chance.</li>
+          <li class="auth-feature">The elder decides who can change the care plan, and what family can see.</li>
+          <li class="auth-feature">Reminders reach the people who need them, once, at the right time.</li>
+          <li class="auth-feature">A missed dose is noticed and shared with the circle, not left to chance.</li>
         </ul>
       </div>
+      <div class="marquee" aria-hidden="true"><div class="marquee-track">${[0, 1].map(() => ['Medicine schedules', 'Missed-dose alerts', 'Appointment companions', 'Daily check-ins', 'Refill forecasts', 'Printable health card', 'Large-text mode', 'Elder-approved changes'].map(t => `<span>${t}</span>`).join('')).join('')}</div></div>
       <p class="small" style="opacity:.6">Organises care. Not medical advice.</p>
     </aside>
     <section class="auth-main">
       <div class="auth-card">
         <div class="auth-mobile-brand">${LOGO()}CareCircle</div>
         <div class="auth-head">
-          <h1>${signIn ? 'Welcome back' : 'Start a care circle'}</h1>
+          <h1 data-blur-text>${signIn ? 'Welcome back' : 'Start a care circle'}</h1>
           <p>${signIn ? 'Sign in with your circle code and your personal passcode.' : 'Set up a circle for the person you care for. Each person gets their own passcode.'}</p>
         </div>
         <div class="seg" role="group" aria-label="Choose"><button data-act="lmode" data-m="in" aria-pressed="${signIn}">Sign in</button><button data-act="lmode" data-m="new" aria-pressed="${!signIn}">Start a care circle</button></div>
@@ -144,14 +156,14 @@ function todayView() {
   const pend = canDecide() ? S.proposals : [];
   const done = S.today.filter(d => d.status === 'taken').length, total = S.today.length;
   const C = 2 * Math.PI * 40;
-  const ring = total && !S.hideHealth ? `<svg class="ring" viewBox="0 0 100 100" role="img" aria-label="${done} of ${total} doses taken today"><circle class="track" cx="50" cy="50" r="40"/><circle class="bar" cx="50" cy="50" r="40" stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${(C * (1 - done / total)).toFixed(1)}"/><text x="50" y="50">${Math.round(done / total * 100)}%</text></svg>` : '';
+  const ring = total && !S.hideHealth ? `<svg class="ring" viewBox="0 0 100 100" role="img" aria-label="${done} of ${total} doses taken today"><circle class="track" cx="50" cy="50" r="40"/><circle class="bar" cx="50" cy="50" r="40" stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${(C * (1 - done / total)).toFixed(1)}"/><text x="50" y="50" data-count="${Math.round(done / total * 100)}" data-suffix="%">${Math.round(done / total * 100)}%</text></svg>` : '';
   const summary = `<section class="summary" aria-label="Today at a glance">
     ${S.hideHealth ? '' : `<div class="card ring-card">${ring || '<div class="kpi"><span class="label">Medicines</span><b>None today</b></div>'}
       ${total ? `<div class="kpi"><span class="label">Today's doses</span><b>${done} of ${total} taken</b>${open.length ? `<span class="muted small">${open.length} still to go</span>` : '<span class="muted small">All done</span>'}</div>` : ''}</div>
     <div class="card kpi"><span class="label">Next dose</span>${nextDose && !S.hideHealth ? `<b>${esc(nextDose.name)}</b><span class="muted small">${fmtTime(nextDose.time)}${nextDose.status === 'due' ? ' · due now' : ''}</span>` : '<b>No doses due</b><span class="muted small">Reminders run automatically</span>'}</div>`}
     <div class="card kpi"><span class="label">Next appointment</span>${next ? `<b>${esc(next.title)}</b><span class="muted small">${fmtDate(next.date)} · ${fmtTime(next.time)}</span>` : '<b>None scheduled</b><span class="muted small">Add one under Appointments</span>'}</div>
   </section>`;
-  return `<div class="hello"><h1>${greet}, ${esc(first)}</h1><p>${fmtDateLong(S.now.date)}${S.me.role !== 'elder' ? ` · Caring for ${esc(S.circle.elderName)}` : ''}</p></div>
+  return `<div class="hello"><h1 data-blur-text>${greet}, ${esc(first)}</h1><p>${fmtDateLong(S.now.date)}${S.me.role !== 'elder' ? ` · Caring for ${esc(S.circle.elderName)}` : ''}</p></div>
   ${summary}
   ${pend.map(p => `<div class="banner"><div><b>${esc(p.byName)}</b> suggests: ${esc(p.summary)}</div><div class="row"><button class="primary small" data-act="decide" data-id="${p.id}" data-v="approve">Approve</button><button class="small" data-act="decide" data-id="${p.id}" data-v="reject">Decline</button></div></div>`).join('')}
   ${S.lowStock.map(l => `<div class="banner bad" role="status">${esc(l.name)} is running low: about ${l.daysLeft} day(s) left (${l.stock} on hand).</div>`).join('')}
@@ -186,7 +198,7 @@ function doseCard(d) {
 const modeWord = () => S.me.mode === 'direct' ? ['Add', 'Save'] : ['Suggest', 'Send suggestion'];
 function medsView() {
   const [verb] = modeWord(), can = S.me.mode !== 'none';
-  return `<div class="row between"><h1>Medicines</h1>${can ? `<button class="primary" data-act="medform">${verb} medicine</button>` : ''}</div>
+  return `<div class="row between"><h1 data-split-text>Medicines</h1>${can ? `<button class="primary magnetic" data-act="medform">${verb} medicine</button>` : ''}</div>
   ${S.me.mode === 'propose' ? `<p class="banner">${esc(S.circle.elderName)} approves changes. Your edits are sent as suggestions.</p>` : ''}
   ${S.me.mode === 'none' ? `<p class="banner">You have view-only access to this circle.</p>` : ''}
   ${S.meds.length ? `<div class="card flat">${S.meds.map(m => `<div class="item"><div class="row between"><b>${esc(m.name)} ${esc(m.dose)}</b>${m.paused ? '<span class="chip gray">Paused</span>' : ''}</div>
@@ -232,7 +244,7 @@ function apptCard(a, compact) {
 }
 function visitsView() {
   const up = S.appts.filter(a => naive(a.date, a.time) >= nowEpoch()), past = S.appts.filter(a => naive(a.date, a.time) < nowEpoch()).reverse().slice(0, 5);
-  return `<div class="row between"><h1>Appointments</h1>${S.me.mode !== 'none' ? `<button class="primary" data-act="apptform">${modeWord()[0]} appointment</button>` : ''}</div>
+  return `<div class="row between"><h1 data-split-text>Appointments</h1>${S.me.mode !== 'none' ? `<button class="primary magnetic" data-act="apptform">${modeWord()[0]} appointment</button>` : ''}</div>
   ${up.length ? up.map(a => apptCard(a)).join('') : `<div class="card"><p>No upcoming appointments.</p></div>`}
   ${past.length ? `<h2>Recent</h2>${past.map(a => apptCard(a, true)).join('')}` : ''}`;
 }
@@ -263,13 +275,20 @@ document.addEventListener('pointermove', ev => {
   const r = card.getBoundingClientRect(), x = (ev.clientX - r.left) / r.width - .5, y = (ev.clientY - r.top) / r.height - .5;
   card.style.setProperty('--ry', (x * 12).toFixed(2) + 'deg'); card.style.setProperty('--rx', (-y * 10).toFixed(2) + 'deg');
 });
+document.addEventListener('pointermove', ev => {
+  if (reduceMotion() || ev.pointerType === 'touch') return;
+  const panel = ev.target.closest && ev.target.closest('.auth-side'); if (!panel) return;
+  const r = panel.getBoundingClientRect();
+  panel.style.setProperty('--spot-x', (ev.clientX - r.left) + 'px');
+  panel.style.setProperty('--spot-y', (ev.clientY - r.top) + 'px');
+});
 document.addEventListener('pointerout', ev => {
   const card = ev.target.closest && ev.target.closest('.idcard');
   if (card && !(ev.relatedTarget && ev.relatedTarget.closest && ev.relatedTarget.closest('.idcard'))) { card.style.removeProperty('--rx'); card.style.removeProperty('--ry'); }
 });
 function circleView() {
   const s = S.circle.settings, me = S.me;
-  return `<h1>Care circle</h1>${idCard()}<p class="muted">Circle code <span class="pass" style="font-size:1rem">${esc(S.circle.code)}</span></p>
+  return `<h1 data-split-text>Care circle</h1>${idCard()}<p class="muted">Circle code <span class="pass" style="font-size:1rem">${esc(S.circle.code)}</span></p>
   <section class="card flat"><div class="item row between"><h2>People</h2>${manage() ? `<button class="primary small" data-act="invite">Invite</button>` : ''}</div>
   ${S.members.map(m => `<div class="item"><div class="row between"><span><b>${esc(m.name)}</b>${m.id === me.id ? ' (you)' : ''}</span><span class="chip">${ROLE[m.role]}</span></div>
     <p class="muted small">${m.email ? esc(m.email) : 'No email: gets no reminders'}</p>
@@ -311,9 +330,9 @@ function healthView() {
     <div><span class="muted small">Emergency contacts</span>${e.contacts.map(d => `<p>${esc(d.name)} ${d.detail ? '· ' + esc(d.detail) : ''} <b>${esc(d.phone)}</b></p>`).join('') || '<p>—</p>'}</div>
     ${e.notes ? `<div><span class="muted small">Notes for paramedics or hospital</span><p>${esc(e.notes)}</p></div>` : ''}
     <button data-act="print">Print this card</button></section>`;
-  if (S.hideHealth) return `<h1>Health</h1><div class="card"><p class="muted">${esc(S.circle.elderName)} keeps dose history private from family.</p></div>${card}`;
-  return `<h1>Health</h1><section class="card"><h2>This week</h2>
-    <div class="stats"><div class="stat"><b>${S.pct == null ? '—' : S.pct + '%'}</b><span class="muted small">doses taken, last 7 days</span></div><div class="stat"><b>${S.streak}</b><span class="muted small">day streak, every dose taken</span></div></div>
+  if (S.hideHealth) return `<h1 data-split-text>Health</h1><div class="card"><p class="muted">${esc(S.circle.elderName)} keeps dose history private from family.</p></div>${card}`;
+  return `<h1 data-split-text>Health</h1><section class="card"><h2>This week</h2>
+    <div class="stats"><div class="stat"><b ${S.pct == null ? '' : `data-count="${S.pct}" data-suffix="%"`}>${S.pct == null ? '—' : S.pct + '%'}</b><span class="muted small">doses taken, last 7 days</span></div><div class="stat"><b data-count="${S.streak}">${S.streak}</b><span class="muted small">day streak, every dose taken</span></div></div>
     <div class="bars" role="img" aria-label="Doses per day for the last 7 days">${S.week.map(w => `<div><div class="bar" style="height:${Math.max(6, Math.round(w.scheduled / max * 100))}px" title="${w.taken} taken, ${w.skipped} skipped, ${w.missed} missed of ${w.scheduled}">
       <i class="t" style="height:${w.scheduled ? w.taken / w.scheduled * 100 : 0}%"></i><i class="s" style="height:${w.scheduled ? w.skipped / w.scheduled * 100 : 0}%"></i><i class="m" style="height:${w.scheduled ? w.missed / w.scheduled * 100 : 0}%"></i></div>${DAYNAMES[new Date(w.date + 'T00:00:00Z').getUTCDay()]}</div>`).join('')}</div>
     <p class="small muted"><span class="chip good">taken</span> <span class="chip warn">skipped</span> <span class="chip bad">missed</span></p></section>${card}`;
@@ -402,4 +421,5 @@ document.addEventListener('submit', async ev => {
 });
 
 /* ── boot ── */
-if (token) { load().then(() => { if (S) startPolling(); }); } else render();
+if (window.CCMotion) window.CCMotion.intro();
+if (token) { load().then(() => { if (S) startPolling(); else render(); }); } else { render(); }

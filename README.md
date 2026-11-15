@@ -33,7 +33,12 @@ It goes beyond a reminder app. It adds approvals so the elder stays in charge, a
 
 CareCircle uses a calm, Manus-inspired design system (see `public/style.css`): warm off-white surfaces, deep charcoal type, muted green for healthy states, restrained blue for actions, and Inter for text. On desktop (960px and wider) a sidebar holds the five sections. On phones, a top bar and bottom tabs do the same job. The sign-in screen is split in two on wider screens.
 
-The ID card on the *Care circle* page tilts gently with the pointer. It is plain CSS and needs no WebGL. It turns off for reduced-motion preferences.
+Motion lives in `public/motion.js` (about 250 lines, no dependencies) with styles at the end of `public/style.css`. The app still works if the file fails to load.
+
+- **Opening (about 3s, once per browser session):** a health report on warm paper splits into two halves that swing open on a CSS 3D hinge to reveal the live page, whose logo, navigation, headline and content then animate in. A Skip button, Esc, Enter and Space all skip it. It is not shown with `prefers-reduced-motion`.
+- **React Bits-style effects, in plain JS/CSS:** Blur Text and Split Text (headings), Count Up (ring, weekly stats), Spotlight Cards, Scroll Reveal (IntersectionObserver), Magnetic Buttons (primary actions), a slow feature marquee on the sign-in hero, and ID-card tilt.
+- **Transitions:** section changes fade, rise and un-blur; a sliding indicator follows the active tab (sidebar and mobile bar); dialogs, toasts, form focus, day chips and progress bars share the same easing. Animations only play when the page changes, never on the 30-second data refresh.
+- Observers and resize listeners are released on every re-render; pointer handlers are delegated once and disabled on touch devices.
 
 **Not included:** the React Bits `<Lanyard />` 3D component. It needs its source file and the `three` package (React Bits builds on React). This version does not add React or WebGL. If you want the 3D version, supply the component source and it can be added as a separate, lazily loaded module.
 
